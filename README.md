@@ -4,13 +4,24 @@ A web application for companies to streamline employee lunch ordering with autom
 
 ## Features
 
+### User Features
 - **Employee Ordering**: Users can order meals for the week ahead
-- **Weekly Calendar View**: Visual dashboard showing ordered and missing days
+- **Weekly Calendar View**: Visual 7-day dashboard with color-coded order status
+- **Order Placement**: Browse menus, add items to cart, place orders with special instructions
+- **Order Management**: View order details, cancel pending orders
+- **Profile Management**: Update personal information, change password
+- **Mobile-Friendly**: Fully responsive design optimized for mobile ordering
+
+### Admin Features
+- **Dashboard**: Real-time statistics (orders, users, revenue)
+- **Restaurant Management**: CRUD operations for restaurants and menus
+- **Order Tracking**: View all orders, update statuses, monitor fulfillment
+- **User Insights**: Track users without orders, send targeted reminders
+
+### Automation
 - **WhatsApp Reminders**: Automated reminders for users who haven't ordered
-- **Restaurant Management**: Admin interface for managing restaurants and menus
 - **Email Summaries**: Automated order summaries sent to restaurants
-- **Order Tracking**: Full order lifecycle management
-- **Mobile-Friendly**: Responsive design for ordering on mobile devices
+- **Background Jobs**: Scheduled tasks for reminders and order processing
 
 ## Tech Stack
 
@@ -26,9 +37,13 @@ A web application for companies to streamline employee lunch ordering with autom
 - **WhatsApp**: WhatsApp Cloud API
 
 ### Frontend
-- React (to be implemented)
-- Vite
-- Tailwind CSS
+- **Framework**: React 18
+- **Build Tool**: Vite 5
+- **Styling**: Tailwind CSS 3
+- **Routing**: React Router 6
+- **HTTP Client**: Axios
+- **Icons**: lucide-react
+- **Date Handling**: date-fns
 
 ## Project Structure
 
@@ -113,6 +128,31 @@ motd/
    ```
 
    The API will be available at `http://localhost:5000`
+
+### Frontend Setup
+
+1. **Navigate to frontend directory**
+   ```bash
+   cd frontend
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Set up environment variables**
+   ```bash
+   cp .env.example .env
+   # Edit .env if needed (default: http://localhost:5000/api)
+   ```
+
+4. **Run development server**
+   ```bash
+   npm run dev
+   ```
+
+   The frontend will be available at `http://localhost:3000`
 
 ### Quick Setup Script
 
@@ -331,6 +371,13 @@ DATABASE_URL=postgresql://user:pass@host:5432/dbname
    - Push to GitHub triggers automatic deployment
    - Monitor logs for errors
 
+7. **Deploy frontend (optional separate capsule)**
+   - Create static capsule from GitHub repository
+   - Set build command: `cd frontend && npm install && npm run build`
+   - Set publish directory: `frontend/dist`
+   - Add environment variable: `VITE_API_BASE_URL=https://your-backend-url/api`
+   - Deploy
+
 ### Post-Deployment
 
 1. Create admin user (via Code Capsules console):
@@ -449,15 +496,22 @@ For issues and questions:
 
 ## Roadmap
 
-- [ ] Complete React frontend
+- [x] Complete React frontend
+- [x] User authentication and profile management
+- [x] Weekly order calendar view
+- [x] Order placement with shopping cart
+- [x] Admin dashboard with statistics
+- [x] Mobile-responsive design
 - [ ] Mobile app (React Native)
 - [ ] PDF receipt generation
 - [ ] Multi-language support
 - [ ] Payment integration
-- [ ] Analytics dashboard
+- [ ] Advanced analytics dashboard
 - [ ] Dietary preference filtering
 - [ ] Favorite orders
 - [ ] Order history export
+- [ ] Real-time order updates (WebSocket)
+- [ ] Push notifications for order status
 
 ## Acknowledgments
 
