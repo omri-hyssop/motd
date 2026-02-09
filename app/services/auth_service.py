@@ -60,7 +60,7 @@ class AuthService:
             raise ValueError('Invalid email or password')
         
         # Create JWT token
-        access_token = create_access_token(identity=user.id)
+        access_token = create_access_token(identity=str(user.id))
         
         # Create session record
         expires_at = datetime.utcnow() + current_app.config['JWT_ACCESS_TOKEN_EXPIRES']

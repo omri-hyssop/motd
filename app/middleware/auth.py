@@ -13,9 +13,9 @@ def auth_required(fn):
         try:
             verify_jwt_in_request()
             user_id = get_jwt_identity()
-            
-            # Get user from database
-            user = db.session.get(User, user_id)
+
+            # Get user from database (convert user_id to int)
+            user = db.session.get(User, int(user_id))
             if not user:
                 return jsonify({'error': 'User not found'}), 404
             
@@ -37,9 +37,9 @@ def admin_required(fn):
         try:
             verify_jwt_in_request()
             user_id = get_jwt_identity()
-            
-            # Get user from database
-            user = db.session.get(User, user_id)
+
+            # Get user from database (convert user_id to int)
+            user = db.session.get(User, int(user_id))
             if not user:
                 return jsonify({'error': 'User not found'}), 404
             
@@ -67,7 +67,7 @@ def optional_auth(fn):
             
             user = None
             if user_id:
-                user = db.session.get(User, user_id)
+                user = db.session.get(User, int(user_id))
                 if user and not user.is_active:
                     user = None
             

@@ -31,7 +31,7 @@ class UserCreateSchema(Schema):
     first_name = fields.Str(required=True, validate=validate.Length(min=1, max=100))
     last_name = fields.Str(required=True, validate=validate.Length(min=1, max=100))
     phone_number = fields.Str(validate=validate.Length(max=20))
-    role = fields.Str(validate=validate.OneOf(['user', 'admin']), missing='user')
+    role = fields.Str(validate=validate.OneOf(['user', 'admin']), load_default='user')
 
 
 class UserUpdateSchema(Schema):

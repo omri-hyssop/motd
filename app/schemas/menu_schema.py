@@ -31,8 +31,8 @@ class MenuItemCreateSchema(Schema):
     price = fields.Decimal(required=True, as_string=True, places=2)
     dietary_info = fields.Str(validate=validate.Length(max=200))
     image_url = fields.Str(validate=validate.Length(max=500))
-    is_available = fields.Bool(missing=True)
-    display_order = fields.Int(missing=0)
+    is_available = fields.Bool(load_default=True)
+    display_order = fields.Int(load_default=0)
 
 
 class MenuItemUpdateSchema(Schema):
