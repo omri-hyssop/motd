@@ -2,7 +2,7 @@
 import pytest
 from datetime import date, timedelta
 from app import create_app, db
-from app.models import User, Restaurant, Menu, MenuItem, Order, OrderItem
+from app.models import User, Restaurant, RestaurantAvailability, Menu, MenuItem, Order, OrderItem
 
 
 @pytest.fixture(scope='session')
@@ -101,6 +101,10 @@ def restaurant(db_session):
         address='123 Test St'
     )
     db_session.add(restaurant)
+    db_session.commit()
+    # Default availability: Mon-Fri
+    for w in range(5):
+        db_session.add(RestaurantAvailability(restaurant_id=restaurant.id, weekday=w, is_available=True))
     db_session.commit()
     return restaurant
 

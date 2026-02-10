@@ -14,6 +14,7 @@ class Order(db.Model):
     order_date = db.Column(db.Date, nullable=False)  # The date the meal is for
     status = db.Column(db.String(50), nullable=False, default='pending')  # pending/confirmed/sent_to_restaurant/completed/cancelled
     total_amount = db.Column(db.Numeric(10, 2), nullable=False, default=0)
+    order_text = db.Column(db.Text)
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -44,6 +45,7 @@ class Order(db.Model):
             'order_date': self.order_date.isoformat() if self.order_date else None,
             'status': self.status,
             'total_amount': float(self.total_amount) if self.total_amount else 0.0,
+            'order_text': self.order_text,
             'notes': self.notes,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None

@@ -11,6 +11,7 @@ const RegisterPage = () => {
     first_name: '',
     last_name: '',
     phone_number: '',
+    birth_date: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -136,6 +137,21 @@ const RegisterPage = () => {
                 value={formData.phone_number}
                 onChange={handleChange}
               />
+            </div>
+
+            <div>
+              <label htmlFor="birth_date" className="label">
+                Birthday
+              </label>
+              <input
+                id="birth_date"
+                name="birth_date"
+                type="date"
+                className="input"
+                value={formData.birth_date}
+                onChange={handleChange}
+              />
+              <p className="mt-1 text-xs text-gray-500">Optional</p>
             </div>
 
             <div>

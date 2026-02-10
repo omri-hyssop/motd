@@ -61,6 +61,7 @@ def create_user(user):
         
         # Create user
         new_user = AuthService.register_user(
+            username=data.get('username'),
             email=data['email'],
             password=data['password'],
             first_name=data['first_name'],
@@ -68,6 +69,10 @@ def create_user(user):
             phone_number=data.get('phone_number'),
             role=data.get('role', 'user')
         )
+
+        if data.get('birth_date') is not None:
+            new_user.birth_date = data['birth_date']
+            db.session.commit()
         
         return jsonify({
             'message': 'User created successfully',
@@ -107,12 +112,29 @@ def update_user(user, user_id):
         # Update fields
         if 'first_name' in data:
             target_user.first_name = data['first_name']
+        if 'username' in data:
+            from sqlalchemy import func
+            username = data['username']
+            if username is None or str(username).strip() == '':
+                target_user.username = None
+            else:
+                existing = User.query.filter(func.lower(User.username) == username.lower(), User.id != target_user.id).first()
+                if existing:
+                    return jsonify({'error': 'Username already taken'}), 400
+                target_user.username = username
         if 'last_name' in data:
             target_user.last_name = data['last_name']
         if 'phone_number' in data:
             target_user.phone_number = data['phone_number']
         if 'is_active' in data:
             target_user.is_active = data['is_active']
+        if 'role' in data:
+            # Prevent admins from demoting themselves.
+            if target_user.id == user.id and data['role'] != 'admin':
+                return jsonify({'error': 'Cannot change your own role'}), 400
+            target_user.role = data['role']
+        if 'birth_date' in data:
+            target_user.birth_date = data['birth_date']
         
         db.session.commit()
         

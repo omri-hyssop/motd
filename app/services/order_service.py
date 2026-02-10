@@ -3,16 +3,34 @@ from datetime import date, timedelta
 from decimal import Decimal
 from sqlalchemy.exc import IntegrityError
 from app import db
-from app.models import Order, OrderItem, Menu, MenuItem
+from app.models import Order, OrderItem, Menu, MenuItem, RestaurantAvailability
 from app.utils.helpers import get_week_dates
 
 
 class OrderService:
     """Service for order operations."""
+
+    @staticmethod
+    def _is_restaurant_available(restaurant_id, weekday):
+        """Return True if restaurant is available on weekday (0=Mon..6=Sun)."""
+        has_any = RestaurantAvailability.query.filter_by(restaurant_id=restaurant_id).first() is not None
+        if not has_any:
+            return False
+        return (
+            RestaurantAvailability.query.filter_by(
+                restaurant_id=restaurant_id,
+                weekday=weekday,
+                is_available=True
+            ).first()
+            is not None
+        )
     
     @staticmethod
     def create_order(user_id, menu_id, order_date, items_data, notes=None):
         """Create a new order with items."""
+        if order_date.weekday() > 4:
+            raise ValueError('Orders can only be placed Monday to Friday')
+
         # Validate menu exists and is available for the date
         menu = db.session.get(Menu, menu_id)
         if not menu:
@@ -23,6 +41,9 @@ class OrderService:
         
         if not (menu.available_from <= order_date <= menu.available_until):
             raise ValueError('Menu is not available for the selected date')
+
+        if not OrderService._is_restaurant_available(menu.restaurant_id, order_date.weekday()):
+            raise ValueError('Restaurant is not available on the selected day')
         
         # Check if user already has an order for this date
         existing_order = Order.query.filter_by(
@@ -87,6 +108,42 @@ class OrderService:
         
         db.session.commit()
         
+        return order
+
+    @staticmethod
+    def create_simple_order(user_id, restaurant_id, order_date, order_text, notes=None):
+        """Create a freeform order tied to the restaurant's active menu."""
+        if order_date.weekday() > 4:
+            raise ValueError('Orders can only be placed Monday to Friday')
+
+        if not OrderService._is_restaurant_available(restaurant_id, order_date.weekday()):
+            raise ValueError('Restaurant is not available on the selected day')
+
+        menu = Menu.query.filter(
+            Menu.restaurant_id == restaurant_id,
+            Menu.is_active.is_(True),
+            Menu.available_from <= order_date,
+            Menu.available_until >= order_date,
+        ).first()
+        if not menu:
+            raise ValueError('Menu not found for this restaurant/date')
+
+        existing_order = Order.query.filter_by(user_id=user_id, order_date=order_date).first()
+        if existing_order:
+            raise ValueError('You already have an order for this date')
+
+        order = Order(
+            user_id=user_id,
+            menu_id=menu.id,
+            restaurant_id=restaurant_id,
+            order_date=order_date,
+            total_amount=Decimal('0.00'),
+            order_text=order_text,
+            notes=notes,
+            status='pending'
+        )
+        db.session.add(order)
+        db.session.commit()
         return order
     
     @staticmethod
@@ -215,6 +272,42 @@ class OrderService:
         
         db.session.commit()
         return order
+
+    @staticmethod
+    def update_simple_order(order_id, user_id, restaurant_id, order_text, notes=None):
+        """Update an existing freeform order (pending only)."""
+        order = Order.query.filter_by(id=order_id, user_id=user_id).first()
+        if not order:
+            raise ValueError('Order not found')
+        if order.status != 'pending':
+            raise ValueError('Can only update pending orders')
+        if order.order_date.weekday() > 4:
+            raise ValueError('Orders can only be placed Monday to Friday')
+
+        if not OrderService._is_restaurant_available(restaurant_id, order.order_date.weekday()):
+            raise ValueError('Restaurant is not available on the selected day')
+
+        menu = Menu.query.filter(
+            Menu.restaurant_id == restaurant_id,
+            Menu.is_active.is_(True),
+            Menu.available_from <= order.order_date,
+            Menu.available_until >= order.order_date,
+        ).first()
+        if not menu:
+            raise ValueError('Menu not found for this restaurant/date')
+
+        order.menu_id = menu.id
+        order.restaurant_id = restaurant_id
+        order.order_text = order_text
+        if notes is not None:
+            order.notes = notes
+
+        # ensure no structured items remain
+        OrderItem.query.filter_by(order_id=order.id).delete()
+        order.total_amount = Decimal('0.00')
+
+        db.session.commit()
+        return order
     
     @staticmethod
     def cancel_order(order_id, user_id):
@@ -238,7 +331,7 @@ class OrderService:
         if not order:
             raise ValueError('Order not found')
         
-        valid_statuses = ['pending', 'confirmed', 'sent_to_restaurant', 'completed', 'cancelled']
+        valid_statuses = ['pending', 'ordered', 'confirmed', 'sent_to_restaurant', 'completed', 'cancelled']
         if status not in valid_statuses:
             raise ValueError(f'Invalid status. Must be one of: {", ".join(valid_statuses)}')
         

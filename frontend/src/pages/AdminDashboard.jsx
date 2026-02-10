@@ -13,6 +13,7 @@ import {
   AlertCircle,
   TrendingUp,
   Package,
+  Utensils,
 } from 'lucide-react';
 
 const AdminDashboard = () => {
@@ -129,7 +130,7 @@ const AdminDashboard = () => {
             {/* Quick Actions */}
             <div className="card mb-8">
               <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Actions</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                 <button
                   onClick={() => navigate('/admin/orders')}
                   className="btn-primary flex items-center justify-center"
@@ -145,11 +146,18 @@ const AdminDashboard = () => {
                   Manage Restaurants
                 </button>
                 <button
-                  onClick={() => navigate('/admin/menus')}
+                  onClick={() => navigate('/admin/users')}
                   className="btn-primary flex items-center justify-center"
                 >
-                  <Calendar className="w-4 h-4 mr-2" />
-                  Manage Menus
+                  <Users className="w-4 h-4 mr-2" />
+                  Manage Users
+                </button>
+                <button
+                  onClick={() => navigate('/admin/motd')}
+                  className="btn-primary flex items-center justify-center"
+                >
+                  <Utensils className="w-4 h-4 mr-2" />
+                  Manage MOTD
                 </button>
               </div>
             </div>

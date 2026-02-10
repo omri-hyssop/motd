@@ -33,8 +33,9 @@ class OrderSchema(Schema):
     restaurant_id = fields.Int(dump_only=True)
     restaurant_name = fields.Str(dump_only=True)
     order_date = fields.Date(required=True)
-    status = fields.Str(validate=validate.OneOf(['pending', 'confirmed', 'sent_to_restaurant', 'completed', 'cancelled']))
+    status = fields.Str(validate=validate.OneOf(['pending', 'ordered', 'confirmed', 'sent_to_restaurant', 'completed', 'cancelled']))
     total_amount = fields.Decimal(dump_only=True, as_string=True, places=2)
+    order_text = fields.Str()
     notes = fields.Str()
     items = fields.List(fields.Nested(OrderItemSchema), dump_only=True)
     created_at = fields.DateTime(dump_only=True)
@@ -58,6 +59,21 @@ class OrderCreateSchema(Schema):
     items = fields.List(fields.Nested(OrderItemCreateSchema), required=True, validate=validate.Length(min=1))
 
 
+class SimpleOrderCreateSchema(Schema):
+    """Schema for creating a simple freeform order."""
+    restaurant_id = fields.Int(required=True)
+    order_date = fields.Date(required=True)
+    order_text = fields.Str(required=True, validate=validate.Length(min=1, max=2000))
+    notes = fields.Str(validate=validate.Length(max=1000))
+
+
+class SimpleOrderUpdateSchema(Schema):
+    """Schema for updating a simple freeform order."""
+    restaurant_id = fields.Int(required=True)
+    order_text = fields.Str(required=True, validate=validate.Length(min=1, max=2000))
+    notes = fields.Str(validate=validate.Length(max=1000))
+
+
 class OrderUpdateSchema(Schema):
     """Schema for updating an order."""
     notes = fields.Str(validate=validate.Length(max=1000))
@@ -66,4 +82,4 @@ class OrderUpdateSchema(Schema):
 
 class OrderStatusUpdateSchema(Schema):
     """Schema for updating order status (admin only)."""
-    status = fields.Str(required=True, validate=validate.OneOf(['pending', 'confirmed', 'sent_to_restaurant', 'completed', 'cancelled']))
+    status = fields.Str(required=True, validate=validate.OneOf(['pending', 'ordered', 'confirmed', 'sent_to_restaurant', 'completed', 'cancelled']))

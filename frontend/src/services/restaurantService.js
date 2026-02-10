@@ -10,6 +10,16 @@ const restaurantService = {
   },
 
   /**
+   * Get restaurants available for a specific date (includes menu)
+   */
+  getAvailableRestaurants: async (date) => {
+    const response = await api.get('/restaurants/available', {
+      params: { date },
+    });
+    return response.data.restaurants;
+  },
+
+  /**
    * Get restaurant by ID
    */
   getRestaurant: async (restaurantId) => {

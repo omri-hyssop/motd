@@ -6,6 +6,7 @@ from app.services.auth_service import AuthService
 from app.schemas import UserSchema, UserCreateSchema, LoginSchema, ChangePasswordSchema, UserUpdateSchema
 from app.middleware.auth import auth_required
 from app.utils.decorators import validate_json
+from app import db
 
 bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
@@ -26,6 +27,7 @@ def register():
         
         # Register user
         user = AuthService.register_user(
+            username=data.get('username'),
             email=data['email'],
             password=data['password'],
             first_name=data['first_name'],
@@ -33,6 +35,10 @@ def register():
             phone_number=data.get('phone_number'),
             role=data.get('role', 'user')
         )
+
+        if data.get('birth_date') is not None:
+            user.birth_date = data['birth_date']
+            db.session.commit()
         
         return jsonify({
             'message': 'User registered successfully',
@@ -54,9 +60,11 @@ def login():
     try:
         # Validate input
         data = login_schema.load(request.json)
-        
+
+        identifier = data.get('identifier') or data.get('email') or data.get('username')
+
         # Authenticate user
-        result = AuthService.login_user(data['email'], data['password'])
+        result = AuthService.login_user(identifier, data['password'])
         
         return jsonify({
             'message': 'Login successful',
@@ -111,7 +119,8 @@ def update_profile(user):
             user=user,
             first_name=data.get('first_name'),
             last_name=data.get('last_name'),
-            phone_number=data.get('phone_number')
+            phone_number=data.get('phone_number'),
+            birth_date=data.get('birth_date') if 'birth_date' in data else None
         )
         
         return jsonify({

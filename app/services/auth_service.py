@@ -2,6 +2,7 @@
 from datetime import datetime, timedelta
 from flask import current_app
 from flask_jwt_extended import create_access_token
+from sqlalchemy import func
 from app import db
 from app.models import User, Session
 from app.utils.validators import validate_email, validate_password
@@ -9,9 +10,26 @@ from app.utils.validators import validate_email, validate_password
 
 class AuthService:
     """Service for handling authentication operations."""
+
+    @staticmethod
+    def _generate_unique_username(base_username):
+        base = (base_username or '').strip()
+        if not base:
+            base = 'user'
+        base = ''.join(ch if (ch.isalnum() or ch in ('_', '-')) else '_' for ch in base).strip('_')[:80]
+        if not base:
+            base = 'user'
+
+        candidate = base
+        suffix = 1
+        while User.query.filter(func.lower(User.username) == candidate.lower()).first() is not None:
+            suffix += 1
+            tail = f"_{suffix}"
+            candidate = (base[: max(1, 80 - len(tail))] + tail)[:80]
+        return candidate
     
     @staticmethod
-    def register_user(email, password, first_name, last_name, phone_number=None, role='user'):
+    def register_user(email, password, first_name, last_name, phone_number=None, role='user', username=None):
         """Register a new user."""
         # Validate email
         if not validate_email(email):
@@ -26,9 +44,15 @@ class AuthService:
         existing_user = User.query.filter_by(email=email).first()
         if existing_user:
             raise ValueError('User with this email already exists')
+
+        if username:
+            username_exists = User.query.filter(func.lower(User.username) == username.lower()).first()
+            if username_exists:
+                raise ValueError('User with this username already exists')
         
         # Create new user
         user = User(
+            username=username or AuthService._generate_unique_username(email.split('@')[0]),
             email=email,
             password=password,
             first_name=first_name,
@@ -43,13 +67,20 @@ class AuthService:
         return user
     
     @staticmethod
-    def login_user(email, password):
+    def login_user(identifier, password):
         """Authenticate user and create session."""
-        # Find user by email
-        user = User.query.filter_by(email=email).first()
+        identifier = (identifier or '').strip()
+        if not identifier:
+            raise ValueError('Invalid email/username or password')
+
+        # Find user by email or username
+        if validate_email(identifier):
+            user = User.query.filter(func.lower(User.email) == identifier.lower()).first()
+        else:
+            user = User.query.filter(func.lower(User.username) == identifier.lower()).first()
         
         if not user:
-            raise ValueError('Invalid email or password')
+            raise ValueError('Invalid email/username or password')
         
         # Check if user is active
         if not user.is_active:
@@ -57,7 +88,7 @@ class AuthService:
         
         # Verify password
         if not user.check_password(password):
-            raise ValueError('Invalid email or password')
+            raise ValueError('Invalid email/username or password')
         
         # Create JWT token
         access_token = create_access_token(identity=str(user.id))
@@ -108,7 +139,7 @@ class AuthService:
         return True
     
     @staticmethod
-    def update_profile(user, first_name=None, last_name=None, phone_number=None):
+    def update_profile(user, first_name=None, last_name=None, phone_number=None, birth_date=None):
         """Update user profile."""
         if first_name:
             user.first_name = first_name
@@ -116,6 +147,8 @@ class AuthService:
             user.last_name = last_name
         if phone_number is not None:
             user.phone_number = phone_number
+        if birth_date is not None:
+            user.birth_date = birth_date
         
         db.session.commit()
         return user

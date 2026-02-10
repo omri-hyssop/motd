@@ -8,6 +8,11 @@ import OrderPage from './pages/OrderPage';
 import OrderDetailPage from './pages/OrderDetailPage';
 import ProfilePage from './pages/ProfilePage';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminOrdersPage from './pages/AdminOrdersPage';
+import AdminRestaurantsPage from './pages/AdminRestaurantsPage';
+import AdminMenusPage from './pages/AdminMenusPage';
+import AdminMotdPage from './pages/AdminMotdPage';
+import AdminUsersPage from './pages/AdminUsersPage';
 
 function App() {
   return (
@@ -58,6 +63,46 @@ function App() {
             element={
               <ProtectedRoute requireAdmin>
                 <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/orders"
+            element={
+              <ProtectedRoute requireAdmin>
+                <AdminOrdersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/restaurants"
+            element={
+              <ProtectedRoute requireAdmin>
+                <AdminRestaurantsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/menus"
+            element={
+              <ProtectedRoute requireAdmin>
+                <AdminMenusPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <ProtectedRoute requireAdmin>
+                <AdminUsersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/motd"
+            element={
+              <ProtectedRoute requireAdmin>
+                <AdminMotdPage />
               </ProtectedRoute>
             }
           />

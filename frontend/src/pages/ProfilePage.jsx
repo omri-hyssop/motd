@@ -11,6 +11,7 @@ const ProfilePage = () => {
     first_name: user?.first_name || '',
     last_name: user?.last_name || '',
     phone_number: user?.phone_number || '',
+    birth_date: user?.birth_date || '',
   });
   const [passwordData, setPasswordData] = useState({
     current_password: '',
@@ -180,6 +181,18 @@ const ProfilePage = () => {
               </div>
 
               <div>
+                <label className="label">Birthday</label>
+                <input
+                  type="date"
+                  name="birth_date"
+                  className="input"
+                  value={formData.birth_date || ''}
+                  onChange={handleChange}
+                  disabled={!editing}
+                />
+              </div>
+
+              <div>
                 <label className="label">Role</label>
                 <input
                   type="text"
@@ -208,6 +221,7 @@ const ProfilePage = () => {
                       first_name: user?.first_name || '',
                       last_name: user?.last_name || '',
                       phone_number: user?.phone_number || '',
+                      birth_date: user?.birth_date || '',
                     });
                   }}
                   className="btn-secondary"

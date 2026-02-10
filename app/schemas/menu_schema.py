@@ -53,6 +53,10 @@ class MenuSchema(Schema):
     restaurant_name = fields.Str(dump_only=True)
     name = fields.Str(required=True, validate=validate.Length(min=1, max=200))
     description = fields.Str()
+    menu_text = fields.Str()
+    menu_file_url = fields.Method("get_menu_file_url", dump_only=True)
+    menu_file_mime = fields.Str(dump_only=True)
+    menu_file_name = fields.Str(dump_only=True)
     available_from = fields.Date(required=True)
     available_until = fields.Date(required=True)
     is_active = fields.Bool()
@@ -69,6 +73,11 @@ class MenuSchema(Schema):
         # Allow today or future dates
         if value < date.today():
             raise ValidationError('Menu availability date cannot be in the past')
+
+    def get_menu_file_url(self, obj):
+        if getattr(obj, "menu_file_path", None):
+            return f"/api/uploads/{obj.menu_file_path}"
+        return None
 
 
 class MenuCreateSchema(Schema):

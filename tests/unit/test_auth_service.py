@@ -73,13 +73,13 @@ class TestAuthService:
     def test_login_invalid_email(self, app, db_session):
         """Test login with non-existent email."""
         with app.app_context():
-            with pytest.raises(ValueError, match='Invalid email or password'):
+            with pytest.raises(ValueError, match='Invalid email/username or password'):
                 AuthService.login_user('nonexistent@test.com', 'Password123!')
     
     def test_login_wrong_password(self, app, db_session, regular_user):
         """Test login with wrong password."""
         with app.app_context():
-            with pytest.raises(ValueError, match='Invalid email or password'):
+            with pytest.raises(ValueError, match='Invalid email/username or password'):
                 AuthService.login_user('user@test.com', 'WrongPassword!')
     
     def test_login_inactive_user(self, app, db_session, regular_user):

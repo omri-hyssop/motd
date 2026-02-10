@@ -1,8 +1,9 @@
 """Restaurant routes."""
 from flask import Blueprint, request, jsonify
 from marshmallow import ValidationError
+from datetime import datetime
 from app import db
-from app.models import Restaurant
+from app.models import Restaurant, RestaurantAvailability, Menu, MotdOption
 from app.schemas import RestaurantSchema, RestaurantCreateSchema, RestaurantUpdateSchema
 from app.middleware.auth import auth_required, admin_required
 from app.utils.decorators import validate_json
@@ -39,6 +40,57 @@ def list_restaurants(user):
     }), 200
 
 
+@bp.route('/available', methods=['GET'])
+@auth_required
+def get_available_restaurants(user):
+    """List restaurants available for a specific date, including their menu content."""
+    target_date = request.args.get('date')
+    if target_date:
+        target_date_obj = datetime.strptime(target_date, '%Y-%m-%d').date()
+    else:
+        from datetime import date
+        target_date_obj = date.today()
+
+    weekday = target_date_obj.weekday()  # 0=Mon
+    if weekday > 4:
+        return jsonify({'date': target_date_obj.isoformat(), 'restaurants': []}), 200
+
+    available_ids = [
+        r.restaurant_id
+        for r in RestaurantAvailability.query.filter_by(weekday=weekday, is_available=True).all()
+    ]
+    if not available_ids:
+        return jsonify({'date': target_date_obj.isoformat(), 'restaurants': []}), 200
+
+    restaurants = Restaurant.query.filter(Restaurant.id.in_(available_ids), Restaurant.is_active.is_(True)).all()
+
+    # Find the (single) active menu for each restaurant that is valid for date
+    menus = Menu.query.filter(
+        Menu.restaurant_id.in_(available_ids),
+        Menu.is_active.is_(True),
+        Menu.available_from <= target_date_obj,
+        Menu.available_until >= target_date_obj,
+    ).all()
+    menu_by_restaurant = {m.restaurant_id: m for m in menus}
+
+    motd_rows = MotdOption.query.filter(
+        MotdOption.restaurant_id.in_(available_ids),
+        MotdOption.weekday == weekday,
+    ).all()
+    motd_by_restaurant = {m.restaurant_id: m.option_text for m in motd_rows}
+
+    result = []
+    for r in sorted(restaurants, key=lambda x: x.name.lower()):
+        menu = menu_by_restaurant.get(r.id)
+        result.append({
+            'restaurant': restaurant_schema.dump(r),
+            'menu': menu.to_dict(include_items=False) if menu else None,
+            'motd_option': motd_by_restaurant.get(r.id),
+        })
+
+    return jsonify({'date': target_date_obj.isoformat(), 'restaurants': result}), 200
+
+
 @bp.route('', methods=['POST'])
 @admin_required
 @validate_json
@@ -52,6 +104,11 @@ def create_restaurant(user):
         restaurant = Restaurant(**data)
         
         db.session.add(restaurant)
+        db.session.flush()
+
+        # Default availability: Mon-Fri
+        for w in range(5):
+            db.session.add(RestaurantAvailability(restaurant_id=restaurant.id, weekday=w, is_available=True))
         db.session.commit()
         
         return jsonify({

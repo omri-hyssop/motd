@@ -227,11 +227,10 @@ The `npm run build` command creates optimized production files in the `dist/` di
 
 ### Deployment Options
 
-**1. Code Capsules (Static Site)**
-- Create static capsule
-- Set build command: `npm run build`
-- Set publish directory: `dist`
-- Deploy
+**1. GCP (recommended): Cloud Storage / Firebase Hosting**
+- Build: `npm run build`
+- Host `dist/` on Firebase Hosting (best SPA routing) or Cloud Storage (+ HTTPS via LB/CDN)
+- Set `VITE_API_BASE_URL` at build time to your Cloud Run backend: `https://<backend>/api`
 
 **2. Netlify**
 - Connect GitHub repository
@@ -249,7 +248,7 @@ The `npm run build` command creates optimized production files in the `dist/` di
 
 Update `VITE_API_BASE_URL` to point to your production backend:
 ```env
-VITE_API_BASE_URL=https://your-backend.codecapsules.co.za/api
+VITE_API_BASE_URL=https://your-backend-domain/api
 ```
 
 ## Troubleshooting

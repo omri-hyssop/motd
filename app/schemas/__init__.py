@@ -12,7 +12,8 @@ from app.schemas.menu_schema import (
 )
 from app.schemas.order_schema import (
     OrderSchema, OrderCreateSchema, OrderUpdateSchema,
-    OrderItemSchema, OrderItemCreateSchema, OrderStatusUpdateSchema
+    OrderItemSchema, OrderItemCreateSchema, OrderStatusUpdateSchema,
+    SimpleOrderCreateSchema, SimpleOrderUpdateSchema
 )
 
 __all__ = [
@@ -22,5 +23,6 @@ __all__ = [
     'MenuSchema', 'MenuCreateSchema', 'MenuUpdateSchema',
     'MenuItemSchema', 'MenuItemCreateSchema', 'MenuItemUpdateSchema',
     'OrderSchema', 'OrderCreateSchema', 'OrderUpdateSchema',
-    'OrderItemSchema', 'OrderItemCreateSchema', 'OrderStatusUpdateSchema'
+    'OrderItemSchema', 'OrderItemCreateSchema', 'OrderStatusUpdateSchema',
+    'SimpleOrderCreateSchema', 'SimpleOrderUpdateSchema'
 ]

@@ -68,3 +68,15 @@ frontend/.env.local
 
 # OS
 Thumbs.db
+
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Uploads (user-generated content)
+uploads/
+
+# GCloud CLI config
+.gcloud/

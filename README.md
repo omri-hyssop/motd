@@ -336,62 +336,35 @@ DATABASE_URL=postgresql://user:pass@host:5432/dbname
 
 ## Deployment
 
-### Code Capsules
+### Google Cloud Platform (GCP)
 
-1. **Prepare for deployment**
-   ```bash
-   # Ensure requirements.txt is up to date
-   pip freeze > requirements.txt
-   
-   # Commit changes
-   git add .
-   git commit -m "Prepare for deployment"
-   git push origin main
-   ```
+This repo ships working Docker images for **backend** and **frontend**, so the lowest-ops / good-price default on GCP is:
+- Backend: **Cloud Run** (container)
+- Frontend: **Cloud Storage static website** (optionally behind Cloud CDN), or Cloud Run if you want “all containers”
+- Database: **Supabase Postgres** (cheapest/easiest) or **Cloud SQL for Postgres** (all-in-GCP)
 
-2. **Create Code Capsules account**
-   - Sign up at https://codecapsules.io
+For the full step-by-step (commands + env vars), see `DOCKER_DEPLOY.md`.
 
-3. **Create backend capsule**
-   - Connect GitHub repository
-   - Select Python/Flask runtime
-   - Set build command: `pip install -r requirements.txt`
-   - Set start command: `gunicorn wsgi:app`
-
-4. **Configure environment variables**
-   - Add all variables from `.env` to capsule settings
-   - Update `DATABASE_URL` with production database
-   - Update `FRONTEND_URL` with production URL
-
-5. **Add database**
-   - Use Supabase PostgreSQL or Code Capsules add-on
-   - Run migrations: `flask db upgrade`
-
-6. **Deploy**
-   - Push to GitHub triggers automatic deployment
-   - Monitor logs for errors
-
-7. **Deploy frontend (optional separate capsule)**
-   - Create static capsule from GitHub repository
-   - Set build command: `cd frontend && npm install && npm run build`
-   - Set publish directory: `frontend/dist`
-   - Add environment variable: `VITE_API_BASE_URL=https://your-backend-url/api`
-   - Deploy
+#### Production notes (important)
+- **Cloud Run requires listening on `$PORT`**. The backend `Dockerfile` is already compatible.
+- **Do not run APScheduler in Cloud Run web instances** (`SCHEDULER_ENABLED=false`). Use Cloud Scheduler to call the task trigger endpoint (`/api/tasks/run`) instead.
+- Cloud Run filesystems are **ephemeral**. If you need persistent uploads, store them in **GCS** (recommended) rather than relying on `UPLOAD_FOLDER`.
+- Some orgs block making services public (`allUsers`). If so, keep Cloud Run private and use identity tokens / OIDC (Cloud Scheduler supports OIDC).
 
 ### Post-Deployment
 
-1. Create admin user (via Code Capsules console):
+1. Create admin user:
    ```bash
    python manage.py create-admin
    ```
 
 2. Test endpoints:
    ```bash
-   curl https://your-app.codecapsules.co.za/api/auth/register
+   curl https://<your-backend-domain>/api/health
    ```
 
 3. Configure WhatsApp webhook:
-   - Point to `https://your-app.codecapsules.co.za/api/webhooks/whatsapp`
+   - Point to `https://<your-backend-domain>/api/webhooks/whatsapp`
 
 ## Development
 

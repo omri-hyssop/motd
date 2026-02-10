@@ -11,6 +11,10 @@ class Menu(db.Model):
     restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id'), nullable=False)
     name = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
+    menu_text = db.Column(db.Text)
+    menu_file_path = db.Column(db.String(500))
+    menu_file_mime = db.Column(db.String(100))
+    menu_file_name = db.Column(db.String(255))
     available_from = db.Column(db.Date, nullable=False)
     available_until = db.Column(db.Date, nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
@@ -35,6 +39,10 @@ class Menu(db.Model):
             'restaurant_name': self.restaurant.name if self.restaurant else None,
             'name': self.name,
             'description': self.description,
+            'menu_text': self.menu_text,
+            'menu_file_url': f"/api/uploads/{self.menu_file_path}" if self.menu_file_path else None,
+            'menu_file_mime': self.menu_file_mime,
+            'menu_file_name': self.menu_file_name,
             'available_from': self.available_from.isoformat() if self.available_from else None,
             'available_until': self.available_until.isoformat() if self.available_until else None,
             'is_active': self.is_active,

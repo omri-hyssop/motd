@@ -3,7 +3,7 @@ from flask import Blueprint, request, jsonify
 from marshmallow import ValidationError
 from datetime import datetime
 from app.services.order_service import OrderService
-from app.schemas import OrderSchema, OrderCreateSchema, OrderUpdateSchema
+from app.schemas import OrderSchema, OrderCreateSchema, OrderUpdateSchema, SimpleOrderCreateSchema, SimpleOrderUpdateSchema
 from app.middleware.auth import auth_required
 from app.utils.decorators import validate_json
 
@@ -13,6 +13,8 @@ order_schema = OrderSchema()
 orders_schema = OrderSchema(many=True)
 order_create_schema = OrderCreateSchema()
 order_update_schema = OrderUpdateSchema()
+simple_order_create_schema = SimpleOrderCreateSchema()
+simple_order_update_schema = SimpleOrderUpdateSchema()
 
 
 @bp.route('', methods=['GET'])
@@ -38,9 +40,8 @@ def list_orders(user):
         date_to=date_to
     )
     
-    return jsonify({
-        'orders': orders_schema.dump(orders)
-    }), 200
+    # Use model serialization so dump_only fields (restaurant_name, etc) are populated.
+    return jsonify({'orders': [o.to_dict(include_items=True) for o in orders]}), 200
 
 
 @bp.route('', methods=['POST'])
@@ -66,6 +67,48 @@ def create_order(user):
             'order': order.to_dict(include_items=True)
         }), 201
         
+    except ValidationError as e:
+        return jsonify({'error': 'Validation error', 'messages': e.messages}), 400
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+
+
+@bp.route('/simple', methods=['POST'])
+@auth_required
+@validate_json
+def create_simple_order(user):
+    """Create a new freeform order (Mon-Fri only)."""
+    try:
+        data = simple_order_create_schema.load(request.json)
+        order = OrderService.create_simple_order(
+            user_id=user.id,
+            restaurant_id=data['restaurant_id'],
+            order_date=data['order_date'],
+            order_text=data['order_text'],
+            notes=data.get('notes'),
+        )
+        return jsonify({'message': 'Order created successfully', 'order': order.to_dict(include_items=True)}), 201
+    except ValidationError as e:
+        return jsonify({'error': 'Validation error', 'messages': e.messages}), 400
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+
+
+@bp.route('/<int:order_id>/simple', methods=['PUT'])
+@auth_required
+@validate_json
+def update_simple_order(user, order_id):
+    """Update a freeform order (pending only)."""
+    try:
+        data = simple_order_update_schema.load(request.json)
+        order = OrderService.update_simple_order(
+            order_id=order_id,
+            user_id=user.id,
+            restaurant_id=data['restaurant_id'],
+            order_text=data['order_text'],
+            notes=data.get('notes'),
+        )
+        return jsonify({'message': 'Order updated successfully', 'order': order.to_dict(include_items=True)}), 200
     except ValidationError as e:
         return jsonify({'error': 'Validation error', 'messages': e.messages}), 400
     except ValueError as e:

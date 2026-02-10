@@ -64,6 +64,11 @@ class Config:
 
     # Scheduler
     SCHEDULER_API_ENABLED = True
+    SCHEDULER_ENABLED = os.environ.get('SCHEDULER_ENABLED', 'true').lower() in ('1', 'true', 'yes', 'on')
+
+    # Task trigger (for Cloud Scheduler / cron-style execution)
+    # If TASK_TRIGGER_TOKEN is unset, the tasks trigger endpoint is disabled.
+    TASK_TRIGGER_TOKEN = os.environ.get('TASK_TRIGGER_TOKEN')
 
 
 class DevelopmentConfig(Config):

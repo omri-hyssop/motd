@@ -1,0 +1,54 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: motd
+      POSTGRES_USER: motd
+      POSTGRES_PASSWORD: motd
+    ports:
+      - "5432:5432"
+    volumes:
+      - motd_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U motd -d motd"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  backend:
+    build:
+      context: .
+    environment:
+      FLASK_ENV: production
+      DATABASE_URL: postgresql://motd:motd@db:5432/motd
+      SECRET_KEY: dev-secret
+      JWT_SECRET_KEY: dev-jwt-secret
+      CORS_ORIGINS: http://localhost:8080,http://localhost:5173
+      FRONTEND_URL: http://localhost:8080
+      RUN_MIGRATIONS: "1"
+      WAIT_FOR_DB: "1"
+      SCHEDULER_ENABLED: "false"
+      UPLOAD_FOLDER: /app/uploads
+      LOG_LEVEL: INFO
+      LOG_FILE: /tmp/app.log
+      PORT: 8080
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "5001:8080"
+    volumes:
+      - ./uploads:/app/uploads
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: http://localhost:5001/api
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+
+volumes:
+  motd_pgdata:

@@ -206,6 +206,32 @@ const OrderPage = () => {
                 </h2>
                 <p className="text-gray-600 mb-6">{selectedMenu.description}</p>
 
+                {(selectedMenu.menu_text || selectedMenu.menu_file_url) && (
+                  <div className="card mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Menu</h3>
+                    {selectedMenu.menu_text && (
+                      <pre className="whitespace-pre-wrap text-sm text-gray-800 bg-gray-50 p-4 rounded-md overflow-auto">
+                        {selectedMenu.menu_text}
+                      </pre>
+                    )}
+                    {selectedMenu.menu_file_url && (
+                      <div className="mt-4">
+                        {String(selectedMenu.menu_file_mime || '').startsWith('image/') ? (
+                          <img
+                            src={selectedMenu.menu_file_url}
+                            alt={selectedMenu.menu_file_name || 'Menu'}
+                            className="max-h-[70vh] w-auto rounded-md border"
+                          />
+                        ) : (
+                          <a className="btn-secondary inline-flex" href={selectedMenu.menu_file_url} target="_blank" rel="noreferrer">
+                            Show Menu
+                          </a>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="space-y-4">
                   {selectedMenu.items.map((item) => (
                     <div key={item.id} className="card flex items-start justify-between">

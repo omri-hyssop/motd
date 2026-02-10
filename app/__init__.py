@@ -59,7 +59,8 @@ def create_app(config_name=None):
 
     # Register blueprints
     with app.app_context():
-        from app.routes import auth, users, restaurants, menus, orders, admin, reminders
+        from app.routes import auth, users, restaurants, menus, orders, admin, reminders, health, uploads
+        from app.routes import tasks
         
         app.register_blueprint(auth.bp)
         app.register_blueprint(users.bp)
@@ -68,13 +69,16 @@ def create_app(config_name=None):
         app.register_blueprint(orders.bp)
         app.register_blueprint(admin.bp)
         app.register_blueprint(reminders.bp)
+        app.register_blueprint(tasks.bp)
+        app.register_blueprint(health.bp)
+        app.register_blueprint(uploads.bp)
 
         # Register error handlers
         from app.middleware.error_handler import register_error_handlers
         register_error_handlers(app)
 
         # Configure scheduler (only in non-testing environments)
-        if not app.config['TESTING']:
+        if not app.config['TESTING'] and app.config.get('SCHEDULER_ENABLED', True):
             configure_scheduler(app)
 
     return app

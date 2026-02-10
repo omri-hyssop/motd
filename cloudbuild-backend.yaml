@@ -1,0 +1,81 @@
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '--platform=linux/amd64'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/emss-487012/motd/motd-backend:$COMMIT_SHA'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/emss-487012/motd/motd-backend:latest'
+      - '-f'
+      - 'Dockerfile'
+      - '.'
+    id: 'build-image'
+
+  # Push the container image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '--all-tags'
+      - 'us-central1-docker.pkg.dev/emss-487012/motd/motd-backend'
+    id: 'push-image'
+
+  # Deploy container image to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'motd-backend'
+      - '--image=us-central1-docker.pkg.dev/emss-487012/motd/motd-backend:$COMMIT_SHA'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--set-env-vars=RUN_MIGRATIONS=0'
+      - '--set-secrets=DATABASE_URL=motd-database-url:latest,SECRET_KEY=motd-secret-key:latest,JWT_SECRET_KEY=motd-jwt-secret-key:latest,TASK_TRIGGER_TOKEN=motd-task-trigger-token:latest'
+    id: 'deploy-cloud-run'
+
+  # Optional: Run migrations (only enable when needed)
+  # - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  #   entrypoint: gcloud
+  #   args:
+  #     - 'run'
+  #     - 'services'
+  #     - 'update'
+  #     - 'motd-backend'
+  #     - '--region=us-central1'
+  #     - '--set-env-vars=RUN_MIGRATIONS=1'
+  #   id: 'enable-migrations'
+  #   waitFor: ['deploy-cloud-run']
+  #
+  # - name: 'gcr.io/cloud-builders/gcloud'
+  #   entrypoint: 'bash'
+  #   args:
+  #     - '-c'
+  #     - |
+  #       echo "Waiting 30s for migrations to run..."
+  #       sleep 30
+  #   id: 'wait-for-migrations'
+  #   waitFor: ['enable-migrations']
+  #
+  # - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  #   entrypoint: gcloud
+  #   args:
+  #     - 'run'
+  #     - 'services'
+  #     - 'update'
+  #     - 'motd-backend'
+  #     - '--region=us-central1'
+  #     - '--set-env-vars=RUN_MIGRATIONS=0'
+  #   id: 'disable-migrations'
+  #   waitFor: ['wait-for-migrations']
+
+images:
+  - 'us-central1-docker.pkg.dev/emss-487012/motd/motd-backend:$COMMIT_SHA'
+  - 'us-central1-docker.pkg.dev/emss-487012/motd/motd-backend:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_HIGHCPU_8'
+
+timeout: '1200s'

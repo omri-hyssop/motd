@@ -12,8 +12,8 @@ const authService = {
   /**
    * Login user
    */
-  login: async (email, password) => {
-    const response = await api.post('/auth/login', { email, password });
+  login: async (identifier, password) => {
+    const response = await api.post('/auth/login', { identifier, password });
     const { user, access_token } = response.data;
 
     // Store token and user in localStorage

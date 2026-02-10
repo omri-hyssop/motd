@@ -8,6 +8,7 @@ class User(db.Model):
     __tablename__ = 'users'
 
     id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=True, index=True)
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
     first_name = db.Column(db.String(100), nullable=False)
@@ -15,6 +16,7 @@ class User(db.Model):
     phone_number = db.Column(db.String(20))  # For WhatsApp reminders
     role = db.Column(db.String(20), nullable=False, default='user')  # 'admin' or 'user'
     is_active = db.Column(db.Boolean, default=True, nullable=False)
+    birth_date = db.Column(db.Date, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
@@ -23,8 +25,9 @@ class User(db.Model):
     reminders = db.relationship('Reminder', back_populates='user', lazy='dynamic')
     sessions = db.relationship('Session', back_populates='user', lazy='dynamic', cascade='all, delete-orphan')
 
-    def __init__(self, email, password, first_name, last_name, phone_number=None, role='user'):
+    def __init__(self, email, password, first_name, last_name, phone_number=None, role='user', username=None):
         """Initialize user with hashed password."""
+        self.username = username
         self.email = email
         self.set_password(password)
         self.first_name = first_name
@@ -53,6 +56,7 @@ class User(db.Model):
         """Convert user to dictionary."""
         return {
             'id': self.id,
+            'username': self.username,
             'email': self.email,
             'first_name': self.first_name,
             'last_name': self.last_name,
@@ -60,6 +64,7 @@ class User(db.Model):
             'phone_number': self.phone_number,
             'role': self.role,
             'is_active': self.is_active,
+            'birth_date': self.birth_date.isoformat() if self.birth_date else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }

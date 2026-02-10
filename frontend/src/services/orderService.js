@@ -26,6 +26,22 @@ const orderService = {
   },
 
   /**
+   * Create new simple freeform order
+   */
+  createSimpleOrder: async (orderData) => {
+    const response = await api.post('/orders/simple', orderData);
+    return response.data.order;
+  },
+
+  /**
+   * Update existing simple order
+   */
+  updateSimpleOrder: async (orderId, orderData) => {
+    const response = await api.put(`/orders/${orderId}/simple`, orderData);
+    return response.data.order;
+  },
+
+  /**
    * Update order
    */
   updateOrder: async (orderId, orderData) => {
@@ -66,6 +82,38 @@ const orderService = {
   getAllOrders: async (params = {}) => {
     const response = await api.get('/admin/orders', { params });
     return response.data.orders;
+  },
+
+  /**
+   * Get orders for a selected day grouped by restaurant (admin)
+   */
+  getOrdersByDateAdmin: async (date) => {
+    const response = await api.get('/admin/orders/by-date', { params: { date } });
+    return response.data;
+  },
+
+  /**
+   * Get email draft for a restaurant/date (admin)
+   */
+  getRestaurantEmailDraftAdmin: async ({ date, restaurant_id }) => {
+    const response = await api.post('/admin/orders/email-draft', { date, restaurant_id });
+    return response.data.draft;
+  },
+
+  /**
+   * Log "send" email for restaurant/date (admin)
+   */
+  sendRestaurantEmailAdmin: async ({ date, restaurant_id }) => {
+    const response = await api.post('/admin/orders/send-email', { date, restaurant_id });
+    return response.data;
+  },
+
+  /**
+   * Log "send" emails for all restaurants with orders (admin)
+   */
+  sendAllRestaurantEmailsAdmin: async ({ date }) => {
+    const response = await api.post('/admin/orders/send-all-emails', { date });
+    return response.data;
   },
 
   /**

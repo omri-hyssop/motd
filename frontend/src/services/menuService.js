@@ -36,6 +36,28 @@ const menuService = {
   },
 
   /**
+   * Create new menu with text/file content (admin)
+   * Accepts FormData with fields described by backend /api/menus/with-content.
+   */
+  createMenuWithContent: async (formData) => {
+    const response = await api.post('/menus/with-content', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data.menu;
+  },
+
+  /**
+   * Update menu content (admin)
+   * Accepts FormData with optional menu_text/menu_file/clear_file.
+   */
+  updateMenuContent: async (menuId, formData) => {
+    const response = await api.put(`/menus/${menuId}/content`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data.menu;
+  },
+
+  /**
    * Update menu (admin)
    */
   updateMenu: async (menuId, menuData) => {

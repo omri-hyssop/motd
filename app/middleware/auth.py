@@ -2,6 +2,7 @@
 from functools import wraps
 from flask import jsonify
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
+from flask_jwt_extended.exceptions import JWTExtendedException
 from app.models import User
 from app import db
 
@@ -13,19 +14,19 @@ def auth_required(fn):
         try:
             verify_jwt_in_request()
             user_id = get_jwt_identity()
-
-            # Get user from database (convert user_id to int)
-            user = db.session.get(User, int(user_id))
-            if not user:
-                return jsonify({'error': 'User not found'}), 404
-            
-            if not user.is_active:
-                return jsonify({'error': 'User account is inactive'}), 403
-            
-            # Pass user to route function
-            return fn(user, *args, **kwargs)
-        except Exception as e:
+        except JWTExtendedException as e:
             return jsonify({'error': 'Authentication required', 'message': str(e)}), 401
+
+        # Get user from database (convert user_id to int)
+        user = db.session.get(User, int(user_id))
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        if not user.is_active:
+            return jsonify({'error': 'User account is inactive'}), 403
+        
+        # Pass user to route function
+        return fn(user, *args, **kwargs)
     
     return wrapper
 
@@ -37,22 +38,22 @@ def admin_required(fn):
         try:
             verify_jwt_in_request()
             user_id = get_jwt_identity()
-
-            # Get user from database (convert user_id to int)
-            user = db.session.get(User, int(user_id))
-            if not user:
-                return jsonify({'error': 'User not found'}), 404
-            
-            if not user.is_active:
-                return jsonify({'error': 'User account is inactive'}), 403
-            
-            if not user.is_admin():
-                return jsonify({'error': 'Admin access required'}), 403
-            
-            # Pass user to route function
-            return fn(user, *args, **kwargs)
-        except Exception as e:
+        except JWTExtendedException as e:
             return jsonify({'error': 'Authentication required', 'message': str(e)}), 401
+
+        # Get user from database (convert user_id to int)
+        user = db.session.get(User, int(user_id))
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        if not user.is_active:
+            return jsonify({'error': 'User account is inactive'}), 403
+        
+        if not user.is_admin():
+            return jsonify({'error': 'Admin access required'}), 403
+        
+        # Pass user to route function
+        return fn(user, *args, **kwargs)
     
     return wrapper
 

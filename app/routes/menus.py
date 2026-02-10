@@ -1,7 +1,10 @@
 """Menu and menu item routes."""
-from flask import Blueprint, request, jsonify
+import os
+import uuid
+from flask import Blueprint, request, jsonify, current_app
 from marshmallow import ValidationError
-from datetime import datetime
+from datetime import datetime, date, timedelta
+from werkzeug.utils import secure_filename
 from app import db
 from app.models import Menu, MenuItem, Restaurant
 from app.schemas import (
@@ -22,6 +25,29 @@ menu_item_schema = MenuItemSchema()
 menu_items_schema = MenuItemSchema(many=True)
 menu_item_create_schema = MenuItemCreateSchema()
 menu_item_update_schema = MenuItemUpdateSchema()
+
+ALLOWED_MENU_UPLOAD_EXTENSIONS = {'.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp'}
+
+
+def _save_menu_upload(file_storage):
+    original_name = file_storage.filename or ''
+    ext = os.path.splitext(original_name.lower())[1]
+    if ext not in ALLOWED_MENU_UPLOAD_EXTENSIONS:
+        raise ValueError(f"Unsupported file type: {ext or 'unknown'}")
+
+    upload_dir = current_app.config.get('UPLOAD_FOLDER') or 'uploads'
+    os.makedirs(upload_dir, exist_ok=True)
+
+    safe_original = secure_filename(original_name) or f"menu{ext}"
+    filename = f"{uuid.uuid4().hex}_{safe_original}"
+    file_path = os.path.join(upload_dir, filename)
+    file_storage.save(file_path)
+
+    return {
+        "path": filename,
+        "mime": file_storage.mimetype,
+        "name": original_name,
+    }
 
 
 @bp.route('', methods=['GET'])
@@ -89,7 +115,13 @@ def create_menu(user):
             data['available_until'],
             data['restaurant_id']
         )
-        
+
+        # Enforce: one active menu per restaurant (keep history by deactivating previous)
+        Menu.query.filter_by(restaurant_id=data['restaurant_id'], is_active=True).update(
+            {"is_active": False},
+            synchronize_session=False,
+        )
+
         # Create menu
         menu = Menu(**data)
         db.session.add(menu)
@@ -104,6 +136,116 @@ def create_menu(user):
         return jsonify({'error': 'Validation error', 'messages': e.messages}), 400
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
+
+
+@bp.route('/with-content', methods=['POST'])
+@admin_required
+def create_menu_with_content(user):
+    """
+    Create a new menu (admin only) with optional text and/or uploaded file.
+
+    Accepts multipart form-data:
+      - restaurant_id (required)
+      - name (required)
+      - description (optional)
+      - available_from (optional, YYYY-MM-DD; default today)
+      - available_until (optional, YYYY-MM-DD; default today+30)
+      - menu_text (optional)
+      - menu_file (optional file: pdf/image)
+    """
+    try:
+        restaurant_id = request.form.get('restaurant_id', type=int)
+        name = (request.form.get('name') or '').strip()
+        description = (request.form.get('description') or '').strip() or None
+        menu_text = (request.form.get('menu_text') or '').strip() or None
+
+        if not restaurant_id or not name:
+            return jsonify({'error': 'restaurant_id and name are required'}), 400
+
+        restaurant = db.session.get(Restaurant, restaurant_id)
+        if not restaurant:
+            return jsonify({'error': 'Restaurant not found'}), 404
+
+        from_str = request.form.get('available_from')
+        until_str = request.form.get('available_until')
+        available_from = datetime.strptime(from_str, '%Y-%m-%d').date() if from_str else date.today()
+        # Default: effectively "forever" unless an end date is explicitly provided.
+        available_until = datetime.strptime(until_str, '%Y-%m-%d').date() if until_str else date(2099, 12, 31)
+
+        MenuService.validate_menu_date_range(available_from, available_until, restaurant_id)
+
+        # Enforce: one active menu per restaurant (keep history by deactivating previous)
+        Menu.query.filter_by(restaurant_id=restaurant_id, is_active=True).update(
+            {"is_active": False},
+            synchronize_session=False,
+        )
+
+        menu = Menu(
+            restaurant_id=restaurant_id,
+            name=name,
+            description=description,
+            available_from=available_from,
+            available_until=available_until,
+        )
+
+        if menu_text:
+            menu.menu_text = menu_text
+
+        file_storage = request.files.get('menu_file')
+        if file_storage and file_storage.filename:
+            saved = _save_menu_upload(file_storage)
+            menu.menu_file_path = saved["path"]
+            menu.menu_file_mime = saved["mime"]
+            menu.menu_file_name = saved["name"]
+
+        if not menu.menu_text and not menu.menu_file_path:
+            return jsonify({'error': 'Provide either menu_text or a menu_file'}), 400
+
+        db.session.add(menu)
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Menu created successfully',
+            'menu': menu_schema.dump(menu)
+        }), 201
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        current_app.logger.exception("Failed to create menu with content")
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/<int:menu_id>/content', methods=['PUT'])
+@admin_required
+def update_menu_content(user, menu_id):
+    """
+    Update menu content (text and/or file). Accepts multipart form-data:
+      - menu_text (optional)
+      - menu_file (optional)
+      - clear_file (optional: 'true' to remove existing file)
+    """
+    menu = db.session.get(Menu, menu_id)
+    if not menu:
+        return jsonify({'error': 'Menu not found'}), 404
+
+    menu_text = request.form.get('menu_text')
+    if menu_text is not None:
+        menu.menu_text = menu_text.strip() or None
+
+    if (request.form.get('clear_file') or '').lower() in ('1', 'true', 'yes', 'on'):
+        menu.menu_file_path = None
+        menu.menu_file_mime = None
+        menu.menu_file_name = None
+
+    file_storage = request.files.get('menu_file')
+    if file_storage and file_storage.filename:
+        saved = _save_menu_upload(file_storage)
+        menu.menu_file_path = saved["path"]
+        menu.menu_file_mime = saved["mime"]
+        menu.menu_file_name = saved["name"]
+
+    db.session.commit()
+    return jsonify({'message': 'Menu content updated', 'menu': menu_schema.dump(menu)}), 200
 
 
 @bp.route('/<int:menu_id>', methods=['GET'])
