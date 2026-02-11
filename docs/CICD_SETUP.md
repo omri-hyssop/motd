@@ -27,6 +27,71 @@ This document describes the CI/CD pipeline setup for automatic deployments to GC
 
 ## Setup Instructions
 
+### Step 0: Create Cloud Build Service Account (REQUIRED)
+
+Cloud Build requires a dedicated service account with proper permissions.
+
+#### Create Service Account
+
+1. **Go to IAM & Admin → Service Accounts**:
+   ```
+   https://console.cloud.google.com/iam-admin/serviceaccounts?project=emss-487012
+   ```
+
+2. **Click "+ CREATE SERVICE ACCOUNT"**
+
+3. **Fill in details**:
+   - **Service account name**: `cloud-build-sa`
+   - **Service account ID**: `cloud-build-sa`
+   - **Description**: `Service account for Cloud Build deployments`
+
+4. **Click "CREATE AND CONTINUE"**
+
+5. **Grant these roles** (click "+ ADD ANOTHER ROLE" for each):
+   - ✅ **Cloud Run Admin** (`roles/run.admin`)
+   - ✅ **Service Account User** (`roles/iam.serviceAccountUser`)
+   - ✅ **Firebase Admin** (`roles/firebase.admin`)
+   - ✅ **Artifact Registry Writer** (`roles/artifactregistry.writer`)
+   - ✅ **Artifact Registry Reader** (`roles/artifactregistry.reader`)
+   - ✅ **Logs Writer** (`roles/logging.logWriter`)
+
+6. **Click "CONTINUE"** then **"DONE"**
+
+#### Grant Cloud Run Runtime Service Account Access to Secrets
+
+**IMPORTANT**: Cloud Run uses a different service account at runtime to access secrets. You must grant the Compute Engine default service account access to Secret Manager.
+
+1. **Go to Secret Manager**:
+   ```
+   https://console.cloud.google.com/security/secret-manager?project=emss-487012
+   ```
+
+2. **For EACH secret**, grant access:
+   - Click on: `motd-database-url`
+   - Click **"PERMISSIONS"** tab
+   - Click **"+ GRANT ACCESS"**
+   - **Add principal**: `1008906809776-compute@developer.gserviceaccount.com`
+   - **Role**: Secret Manager Secret Accessor
+   - Click **"SAVE"**
+
+   Repeat for:
+   - `motd-secret-key`
+   - `motd-jwt-secret-key`
+   - `motd-task-trigger-token`
+
+**Service Account Architecture**:
+```
+Cloud Build SA (cloud-build-sa)
+  ↓ Deploys the service
+Cloud Run Service
+  ↓ Uses at runtime
+Compute Engine Default SA (1008906809776-compute@...)
+  ↓ Accesses
+Secret Manager Secrets
+```
+
+---
+
 ### Step 1: Connect GitHub to Cloud Build
 
 1. **Go to Cloud Build Triggers page**:
@@ -55,6 +120,7 @@ This document describes the CI/CD pipeline setup for automatic deployments to GC
    - **Configuration**:
      - **Type**: Cloud Build configuration file (yaml or json)
      - **Location**: `/cloudbuild-backend.yaml`
+   - **Service account**: Select `cloud-build-sa@emss-487012.iam.gserviceaccount.com` ⭐
    - **Included files filter (optional)**:
      ```
      app/**
@@ -80,6 +146,7 @@ This document describes the CI/CD pipeline setup for automatic deployments to GC
    - **Configuration**:
      - **Type**: Cloud Build configuration file (yaml or json)
      - **Location**: `/cloudbuild-frontend.yaml`
+   - **Service account**: Select `cloud-build-sa@emss-487012.iam.gserviceaccount.com` ⭐
    - **Included files filter (optional)**:
      ```
      frontend/**
@@ -273,6 +340,51 @@ Should show:
 - `roles/run.admin`
 - `roles/iam.serviceAccountUser`
 - `roles/firebase.admin`
+
+### Backend Deploy Fails: Permission Denied on Secrets
+
+**Issue**: Build succeeds but deploy fails with:
+```
+ERROR: Permission denied on secret: projects/.../secrets/motd-database-url/versions/latest
+for Revision service account 1008906809776-compute@developer.gserviceaccount.com
+```
+
+**Root Cause**: Cloud Run runtime service account (Compute Engine default) doesn't have access to secrets.
+
+**Solution**: Grant Secret Manager access to the runtime service account:
+
+**Via Console**:
+1. Go to [Secret Manager](https://console.cloud.google.com/security/secret-manager?project=emss-487012)
+2. For each secret (`motd-database-url`, `motd-secret-key`, `motd-jwt-secret-key`, `motd-task-trigger-token`):
+   - Click secret → **PERMISSIONS** → **+ GRANT ACCESS**
+   - Principal: `1008906809776-compute@developer.gserviceaccount.com`
+   - Role: **Secret Manager Secret Accessor**
+
+**Via CLI**:
+```bash
+for SECRET in motd-database-url motd-secret-key motd-jwt-secret-key motd-task-trigger-token; do
+  gcloud secrets add-iam-policy-binding $SECRET \
+    --member="serviceAccount:1008906809776-compute@developer.gserviceaccount.com" \
+    --role="roles/secretmanager.secretAccessor" \
+    --project=emss-487012
+done
+```
+
+**Remember**: Two service accounts are involved:
+- **Cloud Build SA** (`cloud-build-sa`) - Deploys the service
+- **Compute Engine Default SA** (`1008906809776-compute@...`) - Runs the service and accesses secrets
+
+### Artifact Registry Permission Denied
+
+**Issue**: Build fails with:
+```
+denied: Permission 'artifactregistry.repositories.uploadArtifacts' denied
+```
+
+**Solution**: Grant Artifact Registry Writer role to Cloud Build service account:
+1. Go to [IAM & Admin](https://console.cloud.google.com/iam-admin/iam?project=emss-487012)
+2. Find `cloud-build-sa@emss-487012.iam.gserviceaccount.com`
+3. Edit and add role: **Artifact Registry Writer**
 
 ### Frontend Build Fails: Firebase Deploy Error
 

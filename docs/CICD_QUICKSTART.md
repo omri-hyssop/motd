@@ -10,12 +10,38 @@ Full documentation: [CICD_SETUP.md](./CICD_SETUP.md)
 
 Already configured:
 - Cloud Build API enabled
-- Service account permissions granted
 - Build configs created (`cloudbuild-backend.yaml`, `cloudbuild-frontend.yaml`)
+
+**⚠️ IMPORTANT**: You must complete service account setup before creating triggers!
 
 ---
 
-## Setup (3 steps)
+## Setup (4 steps)
+
+### 0. Create Cloud Build Service Account (REQUIRED - One Time)
+
+**Create Service Account**:
+1. Go to [IAM & Admin → Service Accounts](https://console.cloud.google.com/iam-admin/serviceaccounts?project=emss-487012)
+2. Click **"+ CREATE SERVICE ACCOUNT"**
+3. Name: `cloud-build-sa`, Description: `Service account for Cloud Build deployments`
+4. Grant roles:
+   - Cloud Run Admin
+   - Service Account User
+   - Firebase Admin
+   - Artifact Registry Writer
+   - Artifact Registry Reader
+   - Logs Writer
+
+**Grant Runtime Access to Secrets**:
+1. Go to [Secret Manager](https://console.cloud.google.com/security/secret-manager?project=emss-487012)
+2. For EACH secret (`motd-database-url`, `motd-secret-key`, `motd-jwt-secret-key`, `motd-task-trigger-token`):
+   - Click secret → **PERMISSIONS** tab → **+ GRANT ACCESS**
+   - Principal: `1008906809776-compute@developer.gserviceaccount.com`
+   - Role: **Secret Manager Secret Accessor**
+
+**Why?** Cloud Build uses `cloud-build-sa` to deploy, but Cloud Run uses the Compute Engine default SA at runtime to access secrets.
+
+---
 
 ### 1. Connect GitHub Repository
 
@@ -38,6 +64,7 @@ Click **"Create Trigger"** and configure:
 - **Branch**: `^main$`
 - **Build config**: Cloud Build configuration file
 - **Location**: `/cloudbuild-backend.yaml`
+- **Service account**: `cloud-build-sa@emss-487012.iam.gserviceaccount.com` ⭐
 - **Included files** (optional):
   ```
   app/**
@@ -58,6 +85,7 @@ Click **"Create Trigger"** and configure:
 - **Branch**: `^main$`
 - **Build config**: Cloud Build configuration file
 - **Location**: `/cloudbuild-frontend.yaml`
+- **Service account**: `cloud-build-sa@emss-487012.iam.gserviceaccount.com` ⭐
 - **Included files** (optional):
   ```
   frontend/**

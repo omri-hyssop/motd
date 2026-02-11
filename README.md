@@ -2,6 +2,30 @@
 
 A web application for companies to streamline employee lunch ordering with automated WhatsApp reminders and restaurant order management.
 
+## 🌐 Live Application
+
+| Environment | URL | Status |
+|-------------|-----|--------|
+| **Frontend** | https://emss-487012.web.app | ✅ Live |
+| **Backend API** | https://motd-backend-1008906809776.us-central1.run.app | ✅ Live |
+
+**Deployment**: Automated via Cloud Build on push to `main` branch
+
+---
+
+## 🚀 Quick Start
+
+### For Users
+Visit the live application at https://emss-487012.web.app
+
+### For Developers
+See [Getting Started](#getting-started) section below for local development setup
+
+### For DevOps
+See [docs/CICD_QUICKSTART.md](./docs/CICD_QUICKSTART.md) for deployment setup
+
+---
+
 ## Features
 
 ### User Features
@@ -62,11 +86,27 @@ motd/
 ├── migrations/               # Database migrations
 ├── tests/                    # Test suite
 ├── frontend/                 # React frontend
+│   ├── src/                  # React source code
+│   ├── Dockerfile            # Frontend container
+│   └── .env.production       # Production config
+├── docs/                     # Documentation
+│   ├── README.md             # Documentation index
+│   ├── CICD_QUICKSTART.md    # CI/CD quick start
+│   ├── CICD_SETUP.md         # Complete CI/CD guide
+│   ├── DEPLOYMENT_SUMMARY.md # Architecture overview
+│   ├── DEVOPS_GCP_SETUP.md   # GCP infrastructure
+│   └── DOCKER_DEPLOY.md      # Docker guide
+├── cloudbuild-backend.yaml   # Backend CI/CD pipeline
+├── cloudbuild-frontend.yaml  # Frontend CI/CD pipeline
+├── firebase.json             # Firebase Hosting config
+├── .firebaserc               # Firebase project config
+├── Dockerfile                # Backend container
+├── docker-compose.yml        # Local Docker setup
 ├── requirements.txt          # Python dependencies
 ├── .env.example              # Environment template
-├── .env                      # Local environment (git-ignored)
 ├── wsgi.py                   # WSGI entry point
 ├── manage.py                 # Management CLI
+├── deploy-frontend.sh        # Frontend deploy script
 └── README.md                 # This file
 ```
 
@@ -264,7 +304,9 @@ All admin endpoints require `Authorization: Bearer <admin_token>`
 
 ### Full API Reference
 
-See [API.md](API.md) for complete API documentation.
+All API endpoints are available at the backend URL: `https://motd-backend-1008906809776.us-central1.run.app/api`
+
+For complete API documentation, see the route files in `app/routes/`.
 
 ## Background Jobs
 
@@ -334,37 +376,91 @@ FROM_EMAIL=noreply@yourdomain.com
 DATABASE_URL=postgresql://user:pass@host:5432/dbname
 ```
 
+## 📖 Documentation
+
+Complete documentation is available in the [`docs/`](./docs/) directory:
+
+- **[docs/README.md](./docs/README.md)** - Documentation index and quick links
+- **[docs/CICD_QUICKSTART.md](./docs/CICD_QUICKSTART.md)** - 5-minute CI/CD setup
+- **[docs/DEPLOYMENT_SUMMARY.md](./docs/DEPLOYMENT_SUMMARY.md)** - Architecture overview
+- **[docs/CICD_SETUP.md](./docs/CICD_SETUP.md)** - Complete CI/CD reference
+- **[docs/DEVOPS_GCP_SETUP.md](./docs/DEVOPS_GCP_SETUP.md)** - GCP infrastructure setup
+- **[docs/DOCKER_DEPLOY.md](./docs/DOCKER_DEPLOY.md)** - Docker deployment guide
+
 ## Deployment
 
-### Google Cloud Platform (GCP)
+### Current Production Setup
 
-This repo ships working Docker images for **backend** and **frontend**, so the lowest-ops / good-price default on GCP is:
-- Backend: **Cloud Run** (container)
-- Frontend: **Cloud Storage static website** (optionally behind Cloud CDN), or Cloud Run if you want “all containers”
-- Database: **Supabase Postgres** (cheapest/easiest) or **Cloud SQL for Postgres** (all-in-GCP)
+**Infrastructure**:
+- **Backend**: Cloud Run (containerized Flask app)
+- **Frontend**: Firebase Hosting (static React build)
+- **Database**: Supabase PostgreSQL
+- **CI/CD**: Cloud Build + GitHub
+- **Secrets**: Secret Manager
+- **Scheduler**: Cloud Scheduler (for background jobs)
 
-For the full step-by-step (commands + env vars), see `DOCKER_DEPLOY.md`.
+**Automatic Deployment**:
+```bash
+# Simply push to main branch
+git push origin main
+```
 
-#### Production notes (important)
-- **Cloud Run requires listening on `$PORT`**. The backend `Dockerfile` is already compatible.
-- **Do not run APScheduler in Cloud Run web instances** (`SCHEDULER_ENABLED=false`). Use Cloud Scheduler to call the task trigger endpoint (`/api/tasks/run`) instead.
-- Cloud Run filesystems are **ephemeral**. If you need persistent uploads, store them in **GCS** (recommended) rather than relying on `UPLOAD_FOLDER`.
-- Some orgs block making services public (`allUsers`). If so, keep Cloud Run private and use identity tokens / OIDC (Cloud Scheduler supports OIDC).
+Cloud Build automatically:
+1. Builds and pushes Docker images
+2. Deploys backend to Cloud Run
+3. Builds and deploys frontend to Firebase Hosting
+
+**Manual Deployment**:
+```bash
+# Backend
+docker buildx build --platform linux/amd64 -t us-central1-docker.pkg.dev/emss-487012/motd/motd-backend:latest .
+docker push us-central1-docker.pkg.dev/emss-487012/motd/motd-backend:latest
+gcloud run deploy motd-backend --image=us-central1-docker.pkg.dev/emss-487012/motd/motd-backend:latest --region=us-central1
+
+# Frontend
+./deploy-frontend.sh
+```
+
+### Setting Up CI/CD
+
+See [docs/CICD_QUICKSTART.md](./docs/CICD_QUICKSTART.md) for complete setup instructions.
+
+### Production Notes
+
+- **Cloud Run**: Configured to listen on `$PORT` environment variable
+- **Scheduler**: APScheduler disabled in web instances (`SCHEDULER_ENABLED=false`). Cloud Scheduler calls `/api/tasks/run` endpoint instead
+- **File Uploads**: Stored in local `uploads/` directory (consider migrating to GCS for multi-instance deployments)
+- **Secrets**: Managed via Secret Manager (DATABASE_URL, JWT keys, API tokens)
+- **Access Control**: Backend is private, frontend is public via Firebase Hosting
 
 ### Post-Deployment
 
-1. Create admin user:
+1. **Verify deployment**:
    ```bash
+   # Check backend health
+   curl https://motd-backend-1008906809776.us-central1.run.app/health
+
+   # Visit frontend
+   open https://emss-487012.web.app
+   ```
+
+2. **Create admin user** (if not already done):
+   ```bash
+   # Connect to Cloud Run instance or run migration job
    python manage.py create-admin
    ```
 
-2. Test endpoints:
-   ```bash
-   curl https://<your-backend-domain>/api/health
-   ```
+3. **Configure WhatsApp webhook**:
+   - Point to: `https://motd-backend-1008906809776.us-central1.run.app/api/webhooks/whatsapp`
 
-3. Configure WhatsApp webhook:
-   - Point to `https://<your-backend-domain>/api/webhooks/whatsapp`
+4. **Set up Cloud Scheduler** (for background jobs):
+   - Already configured to call `/api/tasks/run` endpoint
+   - See [docs/DEVOPS_GCP_SETUP.md](./docs/DEVOPS_GCP_SETUP.md) for details
+
+5. **Monitor deployments**:
+   - Cloud Build: https://console.cloud.google.com/cloud-build/builds?project=emss-487012
+   - Cloud Run: https://console.cloud.google.com/run?project=emss-487012
+   - Firebase: https://console.firebase.google.com/project/emss-487012
 
 ## Development
 
@@ -469,27 +565,48 @@ For issues and questions:
 
 ## Roadmap
 
-- [x] Complete React frontend
+### ✅ Completed
+- [x] Complete React frontend with Vite and Tailwind CSS
 - [x] User authentication and profile management
 - [x] Weekly order calendar view
 - [x] Order placement with shopping cart
 - [x] Admin dashboard with statistics
 - [x] Mobile-responsive design
+- [x] Production deployment on GCP (Cloud Run + Firebase Hosting)
+- [x] CI/CD pipeline with Cloud Build + GitHub
+- [x] Docker containerization
+- [x] Automated testing (76 tests passing)
+- [x] MOTD (Message of the Day) management
+- [x] Restaurant availability scheduling
+- [x] Email order summaries to restaurants
+- [x] WhatsApp reminder integration
+
+### 🚧 In Progress
+- [ ] Enhanced admin features
+- [ ] Order analytics and reporting
+
+### 📋 Planned
 - [ ] Mobile app (React Native)
 - [ ] PDF receipt generation
 - [ ] Multi-language support
 - [ ] Payment integration
 - [ ] Advanced analytics dashboard
 - [ ] Dietary preference filtering
-- [ ] Favorite orders
+- [ ] Favorite orders and repeat ordering
 - [ ] Order history export
 - [ ] Real-time order updates (WebSocket)
 - [ ] Push notifications for order status
+- [ ] User feedback and ratings
+- [ ] Restaurant menu versioning
 
 ## Acknowledgments
 
 - Flask framework and ecosystem
+- React and Vite for frontend tooling
+- Tailwind CSS for styling
 - SendGrid for email service
 - Meta for WhatsApp Business API
-- Code Capsules for hosting
+- Google Cloud Platform for infrastructure (Cloud Run, Cloud Build, Secret Manager)
+- Firebase for static hosting
 - Supabase for PostgreSQL database
+- GitHub for version control and CI/CD integration
