@@ -1,6 +1,9 @@
 """Management script for database operations."""
 import os
 import sys
+import getpass
+import argparse
+from datetime import datetime, timezone
 from flask import Flask
 from flask_migrate import Migrate, init, migrate as create_migration, upgrade
 from app import create_app, db
@@ -81,36 +84,57 @@ def reset_db():
 
 
 if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        print("""
-Usage: python manage.py <command>
+    parser = argparse.ArgumentParser(prog="python manage.py", add_help=True)
+    subparsers = parser.add_subparsers(dest="command", required=True)
 
-Commands:
-  init              Initialize database migrations
-  migrate [message] Create a new migration
-  upgrade           Apply migrations to database
-  create-admin      Create an admin user (interactive)
-  reset             Reset database (WARNING: destroys all data)
-        """)
-        sys.exit(1)
-    
-    command = sys.argv[1]
-    
-    if command == 'init':
+    subparsers.add_parser("init", help="Initialize database migrations")
+
+    migrate_parser = subparsers.add_parser("migrate", help="Create a new migration")
+    migrate_parser.add_argument("message", nargs="?", default="Auto migration")
+
+    subparsers.add_parser("upgrade", help="Apply migrations to database")
+
+    create_admin_parser = subparsers.add_parser("create-admin", help="Create an admin user")
+    create_admin_parser.add_argument("--email", default=os.environ.get("ADMIN_EMAIL"))
+    create_admin_parser.add_argument("--password", default=os.environ.get("ADMIN_PASSWORD"))
+    create_admin_parser.add_argument("--first-name", default=os.environ.get("ADMIN_FIRST_NAME"))
+    create_admin_parser.add_argument("--last-name", default=os.environ.get("ADMIN_LAST_NAME"))
+
+    subparsers.add_parser("reset", help="Reset database (WARNING: destroys all data)")
+
+    args = parser.parse_args()
+
+    if args.command == "init":
         init_db()
-    elif command == 'migrate':
-        message = sys.argv[2] if len(sys.argv) > 2 else "Auto migration"
-        migrate_db(message)
-    elif command == 'upgrade':
+    elif args.command == "migrate":
+        migrate_db(args.message)
+    elif args.command == "upgrade":
         upgrade_db()
-    elif command == 'create-admin':
-        email = input("Email: ")
-        password = input("Password: ")
-        first_name = input("First Name: ")
-        last_name = input("Last Name: ")
+    elif args.command == "create-admin":
+        non_interactive = not sys.stdin.isatty()
+        if non_interactive and not args.email:
+            print("✗ ADMIN_EMAIL (or --email) is required in non-interactive mode")
+            sys.exit(2)
+        if non_interactive and not args.first_name:
+            print("✗ ADMIN_FIRST_NAME (or --first-name) is required in non-interactive mode")
+            sys.exit(2)
+        if non_interactive and not args.last_name:
+            print("✗ ADMIN_LAST_NAME (or --last-name) is required in non-interactive mode")
+            sys.exit(2)
+        if non_interactive and not args.password:
+            print("✗ ADMIN_PASSWORD (or --password) is required in non-interactive mode")
+            sys.exit(2)
+
+        email = args.email or input("Email: ")
+        password = args.password
+        if not password:
+            password = getpass.getpass("Password (hidden): ")
+            password_confirm = getpass.getpass("Confirm Password: ")
+            if password != password_confirm:
+                print("✗ Passwords do not match")
+                sys.exit(1)
+        first_name = args.first_name or input("First Name: ")
+        last_name = args.last_name or input("Last Name: ")
         create_admin(email, password, first_name, last_name)
-    elif command == 'reset':
+    elif args.command == "reset":
         reset_db()
-    else:
-        print(f"Unknown command: {command}")
-        sys.exit(1)

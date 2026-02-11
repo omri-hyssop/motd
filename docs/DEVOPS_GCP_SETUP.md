@@ -319,6 +319,86 @@ gcloud run services update "$SERVICE_BACKEND" \
 
 ---
 
+## 10.5) Create the first admin user (production)
+
+Preferred method: run a **Cloud Run Job** using the same image/secrets as the backend, so it runs “inside GCP” (no laptop DNS/VPN issues).
+
+### Option A (recommended): Cloud Run Job (runs in GCP)
+
+Get the image Cloud Run is currently using:
+```bash
+export PROJECT_ID="emss-487012"
+export REGION="us-central1"
+export SERVICE_BACKEND="motd-backend"
+
+export IMAGE_BACKEND="$(gcloud run services describe "$SERVICE_BACKEND" --project "$PROJECT_ID" --region "$REGION" --format='value(spec.template.spec.containers[0].image)')"
+echo "$IMAGE_BACKEND"
+```
+
+Create a one-off job (you can delete it afterwards):
+```bash
+export JOB_NAME="motd-create-admin"
+
+gcloud run jobs create "$JOB_NAME" \
+  --project "$PROJECT_ID" \
+  --region "$REGION" \
+  --image "$IMAGE_BACKEND" \
+  --set-env-vars "FLASK_ENV=production" \
+  --set-secrets "DATABASE_URL=motd-database-url:latest,SECRET_KEY=motd-secret-key:latest,JWT_SECRET_KEY=motd-jwt-secret-key:latest" \
+  --command "python3" \
+  --args "manage.py,create-admin"
+```
+
+Execute it by supplying admin details as env vars (recommended to avoid typing secrets in shell history, you can paste interactively in your terminal):
+```bash
+gcloud run jobs execute "$JOB_NAME" \
+  --project "$PROJECT_ID" \
+  --region "$REGION" \
+  --update-env-vars "ADMIN_EMAIL=you@example.com,ADMIN_PASSWORD=ChangeMe123!,ADMIN_FIRST_NAME=Admin,ADMIN_LAST_NAME=User" \
+  --wait
+```
+
+Tip: if you don’t want the password in shell history, set it in your environment first and reference it:
+```bash
+export ADMIN_PASSWORD='ChangeMe123!'
+gcloud run jobs execute "$JOB_NAME" \
+  --project "$PROJECT_ID" \
+  --region "$REGION" \
+  --update-env-vars "ADMIN_EMAIL=you@example.com,ADMIN_PASSWORD=$ADMIN_PASSWORD,ADMIN_FIRST_NAME=Admin,ADMIN_LAST_NAME=User" \
+  --wait
+```
+
+Important:
+- Cloud Run Jobs are non-interactive. If you forget one of `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_FIRST_NAME`, `ADMIN_LAST_NAME`, the job will fail.
+
+View logs (if needed):
+```bash
+gcloud run jobs executions list --project "$PROJECT_ID" --region "$REGION" --job "$JOB_NAME" --limit 5
+gcloud run jobs executions logs read --project "$PROJECT_ID" --region "$REGION" --job "$JOB_NAME" --limit 200
+```
+
+Delete the job once you’re done:
+```bash
+gcloud run jobs delete "$JOB_NAME" --project "$PROJECT_ID" --region "$REGION" --quiet
+```
+
+### Option B: Run locally against production DB (requires laptop network/DNS access to Supabase)
+
+From repo root (uses `manage.py create-admin`, password input is hidden):
+```bash
+FLASK_ENV=production \
+DATABASE_URL="$(gcloud secrets versions access latest --secret=motd-database-url --project emss-487012)" \
+SECRET_KEY="$(gcloud secrets versions access latest --secret=motd-secret-key --project emss-487012)" \
+JWT_SECRET_KEY="$(gcloud secrets versions access latest --secret=motd-jwt-secret-key --project emss-487012)" \
+python3 manage.py create-admin
+```
+
+Notes:
+- This creates a user row with `role=admin` in the production database.
+- If the email already exists, the command prints an error and exits.
+
+---
+
 ## 11) Frontend hosting with Firebase Hosting ✅
 
 Firebase Hosting successfully deployed! Here's the complete setup:
