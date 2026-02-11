@@ -31,6 +31,7 @@ steps:
       - '--image=us-central1-docker.pkg.dev/emss-487012/motd/motd-backend:$COMMIT_SHA'
       - '--region=us-central1'
       - '--platform=managed'
+      - '--ingress=internal-and-cloud-load-balancing'
       - '--set-env-vars=RUN_MIGRATIONS=0'
       - '--set-secrets=DATABASE_URL=motd-database-url:latest,SECRET_KEY=motd-secret-key:latest,JWT_SECRET_KEY=motd-jwt-secret-key:latest,TASK_TRIGGER_TOKEN=motd-task-trigger-token:latest'
     id: 'deploy-cloud-run'
